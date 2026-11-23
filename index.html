@@ -193,14 +193,13 @@
         <label>路線 / 備註（點選常用詞或輸入）</label>
         <input type="text" id="t-route" placeholder="撳下方掣或輸入路線">
         <div class="tap-group">
-       <button type="button" class="chip" onclick="appendRoute('HKTVmall ➔ ')">HKTVmall ➔</button>
-          <button type="button" class="chip" onclick="appendRoute('葵涌提貸 ➔ ')">葵涌提貸 ➔</button>
-          <button type="button" class="chip" onclick="appendRoute('HKTVmall ')">HKTVmall</button>
-          <button type="button" class="chip" onclick="appendRoute('WTS')">WTS</button>
-          <button type="button" class="chip" onclick="appendRoute('LF')">LF</button>
-          <button type="button" class="chip" onclick="appendRoute('萬寧')">萬寧</button>
-          <button type="button" class="chip" onclick="appendRoute('711 ')">711</button>
-          <button type="button" class="chip" onclick="appendRoute('惠康')">惠康</button>
+          <button type="button" class="tap-btn" onclick="addText('t-route', 'HKTVMall ➔ ')">HKTVMall ➔</button>
+          <button type="button" class="tap-btn" onclick="addText('t-route', '葵涌倉 ➔ ')">京華 ➔</button>
+          <button type="button" class="tap-btn" onclick="addText('t-route', 'WTS')">WTS</button>
+          <button type="button" class="tap-btn" onclick="addText('t-route', 'LF')">LF</button>
+          <button type="button" class="tap-btn" onclick="addText('t-route', 'HKTVMall')">HKTVMall</button>
+          <button type="button" class="tap-btn" onclick="addText('t-route', 'HKTVmall 3PL')">HKTVmall 3PL</button>
+          <button type="button" class="tap-btn" onclick="clearInput('t-route')">清空</button>
         </div>
       </div>
 
