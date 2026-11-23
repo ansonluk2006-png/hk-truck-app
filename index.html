@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>車務雲端同步系統</title>
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-bg: #eff6ff;
+    --success: #15803d;
+    --danger: #b91c1c;
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #cbd5e1;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "PingFang HK", "Microsoft JhengHei", sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--text); padding-bottom: 84px; }
+
+  /* 登入畫面 */
+  #login-screen {
+    position: fixed; inset: 0; background: #0f172a; z-index: 999;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .login-card {
+    background: #fff; width: 100%; max-width: 380px; border-radius: 16px;
+    padding: 26px 22px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  }
+  .login-card h2 { margin: 0 0 8px 0; font-size: 20px; color: var(--primary); }
+  .login-card p { margin: 0 0 18px 0; font-size: 13px; color: var(--muted); }
+  .pin-input {
+    width: 100%; padding: 14px; font-size: 24px; text-align: center;
+    letter-spacing: 8px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 14px;
+  }
+
+  /* 頂部欄 */
+  .top-bar {
+    background: var(--primary); color: #fff; padding: 12px 16px;
+    position: sticky; top: 0; z-index: 50;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .top-bar h1 { margin: 0; font-size: 16px; font-weight: 700; }
+  .role-badge {
+    font-size: 11px; background: rgba(255,255,255,0.2);
+    padding: 4px 8px; border-radius: 12px; cursor: pointer;
+  }
+
+  /* 底部大型導航列 */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 60;
+    background: #fff; border-top: 1px solid var(--border);
+    display: flex; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-item {
+    flex: 1; border: none; background: none; padding: 10px 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer;
+  }
+  .nav-item span.icon { font-size: 20px; }
+  .nav-item.active { color: var(--primary); background: var(--primary-bg); }
+  .boss-only { display: none; }
+
+  .wrap { padding: 12px; max-width: 720px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .box {
+    background: var(--card); border-radius: 14px; padding: 14px;
+    margin-bottom: 12px; border: 1px solid #e2e8f0;
+  }
+  .box-title { font-size: 15px; font-weight: 700; margin: 0 0 10px 0; color: var(--primary); }
+
+  .field { margin-bottom: 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #334155; }
+  input, select, textarea {
+    width: 100%; padding: 12px; border: 1.5px solid var(--border);
+    border-radius: 10px; font-size: 16px; background: #fff; color: var(--text);
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  .tap-group { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
+  .tap-btn {
+    border: 1px solid #cbd5e1; background: #f8fafc; color: #1e293b;
+    padding: 8px 12px; border-radius: 20px; font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .tap-btn:active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  .reimburse-box {
+    display: flex; align-items: center; gap: 10px;
+    background: #f0fdf4; border: 1px solid #bbf7d0;
+    padding: 11px 12px; border-radius: 10px; margin-bottom: 12px;
+  }
+  .reimburse-box input[type="checkbox"] { width: 22px; height: 22px; margin: 0; flex-shrink: 0; }
+  .reimburse-box label { margin: 0; font-size: 14px; color: #14532d; line-height: 1.35; }
+
+  .main-btn {
+    width: 100%; padding: 14px; border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  .btn-blue { background: var(--primary); color: #fff; }
+  .btn-green { background: var(--success); color: #fff; }
+  .btn-light { background: #e2e8f0; color: #1e293b; margin-top: 8px; }
+
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .kpi { background: #fff; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0; }
+  .kpi-label { font-size: 12px; color: var(--muted); }
+  .kpi-num { font-size: 20px; font-weight: 800; margin-top: 4px; }
+
+  .item-row {
+    padding: 11px 0; border-bottom: 1px solid #e2e8f0;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  .item-row:last-child { border-bottom: none; }
+  .mini-btn {
+    border: none; border-radius: 8px; padding: 7px 10px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .btn-edit { background: #dbeafe; color: #1e40af; margin-right: 4px; }
+  .btn-del { background: #fee2e2; color: #991b1b; }
+
+  #sync-status {
+    font-size: 11px; text-align: center; padding: 4px;
+    background: #dcfce7; color: #166534; font-weight: 600;
+  }
+
+  /* PDF 單據樣式 */
+  #pdf-paper {
+    background: #fff; padding: 22px; border-radius: 8px;
+    border: 1px solid #cbd5e1; color: #000; margin-top: 12px;
+  }
+  .pdf-top { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 14px; }
+  .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
+  .pdf-table th, .pdf-table td { border: 1px solid #cbd5e1; padding: 6px; }
+  .pdf-table th { background: #f1f5f9; text-align: left; }
+  .r { text-align: right; }
+  .pdf-pay { background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; border-radius: 6px; font-size: 12px; white-space: pre-line; line-height: 1.55; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .top-bar, .bottom-nav, #sync-status, .no-print { display: none !important; }
+    .wrap { padding: 0; max-width: 100%; }
+    .page { display: none !important; }
+    #page-pdf { display: block !important; }
+    #pdf-paper { border: none; padding: 0; margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== 密碼鎖定登入畫面 ==================== -->
+<div id="login-screen">
+  <div class="login-card">
+    <h2>🚛 車務雲端同步系統</h2>
+    <p>請輸入密碼進入系統</p>
+    <input type="password" id="pin-code" class="pin-input" inputmode="numeric" maxlength="8" placeholder="••••" onkeyup="if(event.key==='Enter') checkLogin()">
+    <button type="button" class="main-btn btn-blue" onclick="checkLogin()">登入系統</button>
+    <div id="login-err" style="color:var(--danger); font-size:13px; margin-top:10px; display:none;">密碼錯誤，請重新輸入！</div>
+  </div>
+</div>
+
+<div class="top-bar no-print">
+  <h1>🚛 車務雲端記帳</h1>
+  <span class="role-badge" id="role-display" onclick="logout()">切換帳號 / 登出</span>
+</div>
+<div id="sync-status" class="no-print">🟢 雲端資料庫連線中...</div>
+
+<div class="wrap">
+
+  <!-- ==================== 1. 記行程（員工 + 老闆共用） ==================== -->
+  <div id="page-log" class="page active">
+    <div class="box">
+      <div class="box-title" id="log-title">新增行程記錄</div>
+      <input type="hidden" id="trip-id">
+
+      <div class="grid-2">
+        <div class="field">
+          <label>日期</label>
+          <input type="date" id="t-date">
+        </div>
+        <div class="field">
+          <label>客戶 *</label>
+          <select id="t-client"></select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>路線 / 備註（點選常用詞或輸入）</label>
+        <input type="text" id="t-route" placeholder="撳下方掣或輸入路線">
+        <div class="tap-group">
+       <button type="button" class="chip" onclick="appendRoute('HKTVmall ➔ ')">HKTVmall ➔</button>
+          <button type="button" class="chip" onclick="appendRoute('葵涌提貸 ➔ ')">葵涌提貸 ➔</button>
+          <button type="button" class="chip" onclick="appendRoute('HKTVmall ')">HKTVmall</button>
+          <button type="button" class="chip" onclick="appendRoute('WTS')">WTS</button>
+          <button type="button" class="chip" onclick="appendRoute('LF')">LF</button>
+          <button type="button" class="chip" onclick="appendRoute('萬寧')">萬寧</button>
+          <button type="button" class="chip" onclick="appendRoute('711 ')">711</button>
+          <button type="button" class="chip" onclick="appendRoute('惠康')">惠康</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>車費收入 (HK$) *</label>
+        <input type="number" id="t-fee" inputmode="decimal" placeholder="0">
+        <div class="tap-group">
+          <button type="button" class="tap-btn" onclick="setVal('t-fee', 400)">$400</button>
+          <button type="button" class="tap-btn" onclick="setVal('t-fee', 500)">$500</button>
+          <button type="button" class="tap-btn" onclick="setVal('t-fee', 600)">$600</button>
+          <button type="button" class="tap-btn" onclick="setVal('t-fee', 800)">$800</button>
+          <button type="button" class="tap-btn" onclick="setVal('t-fee', 1000)">$1000</button>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="field">
+          <label>隧道費 ($)</label>
+          <input type="number" id="t-tunnel" inputmode="decimal" placeholder="0">
+        </div>
+        <div class="field">
+          <label>停車費 ($)</label>
+          <input type="number" id="t-park" inputmode="decimal" placeholder="0">
+        </div>
+        <div class="field">
+          <label>其他雜費 ($)</label>
+          <input type="number" id="t-other" inputmode="decimal" placeholder="0">
+        </div>
+      </div>
+
+      <div class="reimburse-box">
+        <input type="checkbox" id="t-reimburse" checked>
+        <label for="t-reimburse">隧道費 + 停車費向客實報實銷（其他雜費只計自己支出）</label>
+      </div>
+
+      <button type="button" class="main-btn btn-blue" id="save-trip-btn" onclick="saveTrip()">☁️ 儲存並同步到雲端</button>
+      <button type="button" id="btn-cancel-trip" class="main-btn btn-light" style="display:none;" onclick="resetTrip()">取消修改</button>
+    </div>
+
+    <!-- 老闆睇最近 15 單（含金額同改/刪掣）；員工只睇今日已入單數核對（不顯示總數） -->
+    <div class="box">
+      <div class="box-title" id="recent-box-title">最近行程記錄</div>
+      <div id="recent-list"></div>
+    </div>
+  </div>
+
+  <!-- ==================== 2. 結算總數（只限老闆） ==================== -->
+  <div id="page-sum" class="page">
+    <div class="box">
+      <div class="box-title">結算篩選</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>由</label>
+          <input type="date" id="s-from" onchange="renderSum()">
+        </div>
+        <div class="field">
+          <label>至</label>
+          <input type="date" id="s-to" onchange="renderSum()">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>客戶</label>
+        <select id="s-client" onchange="renderSum()"></select>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">向客應收總數</div>
+        <div class="kpi-num" style="color:var(--primary);" id="k-bill">$0</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">淨賺總數 (收-支)</div>
+        <div class="kpi-num" style="color:var(--success);" id="k-net">$0</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">總雜費支出</div>
+        <div class="kpi-num" style="color:var(--danger);" id="k-exp">$0</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">總單數</div>
+        <div class="kpi-num" id="k-cnt">0</div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="box-title">明細</div>
+      <div id="sum-list"></div>
+    </div>
+  </div>
+
+  <!-- ==================== 3. 出 PDF 單（只限老闆） ==================== -->
+  <div id="page-pdf" class="page">
+    <div class="box no-print">
+      <div class="box-title">產生 PDF 單據</div>
+      <div class="field">
+        <label>揀客戶 *</label>
+        <select id="p-client" onchange="renderPDF()"></select>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>開始日期</label>
+          <input type="date" id="p-from" onchange="renderPDF()">
+        </div>
+        <div class="field">
+          <label>結束日期</label>
+          <input type="date" id="p-to" onchange="renderPDF()">
+        </div>
+      </div>
+      <button type="button" class="main-btn btn-green" onclick="window.print()">📄 產生並儲存 PDF</button>
+      <div style="font-size:12px; color:var(--muted); margin-top:6px;">
+        iPhone 撳完後喺預覽畫面用兩隻手指撐開，再撳「分享」即可儲存 PDF 傳畀客。
+      </div>
+    </div>
+    <div id="pdf-paper"></div>
+  </div>
+
+  <!-- ==================== 4. 客戶與收款設定（只限老闆） ==================== -->
+  <div id="page-more" class="page">
+    <div class="box">
+      <div class="box-title" id="c-title">新增客戶</div>
+      <input type="hidden" id="c-id">
+      <div class="field">
+        <label>客戶名稱 *</label>
+        <input type="text" id="c-name" placeholder="公司或客戶名">
+      </div>
+      <div class="field">
+        <label>客戶電話</label>
+        <input type="tel" id="c-phone" placeholder="聯絡電話">
+      </div>
+      <div class="field">
+        <label>公司地址</label>
+        <input type="text" id="c-addr" placeholder="公司 / 送貨地址">
+      </div>
+      <button type="button" class="main-btn btn-blue" onclick="saveClient()">儲存客戶</button>
+      <button type="button" id="btn-cancel-c" class="main-btn btn-light" style="display:none;" onclick="resetClient()">取消</button>
+    </div>
+
+    <div class="box">
+      <div class="box-title">已存客戶 (<span id="c-count">0</span>)</div>
+      <div id="c-list"></div>
+    </div>
+
+    <div class="box">
+      <div class="box-title">我嘅收款資料（會印喺 PDF 單）</div>
+      <div class="field">
+        <label>公司名 / 車牌</label>
+        <input type="text" id="m-comp" placeholder="例如：XX物流 / YD 9858">
+      </div>
+      <div class="field">
+        <label>我嘅聯絡電話</label>
+        <input type="tel" id="m-phone" placeholder="電話 / WhatsApp">
+      </div>
+      <div class="field">
+        <label>收款戶口 / FPS 資料</label>
+        <textarea id="m-pay" rows="4" placeholder="FPS ID / 銀行名稱 / 戶口號碼 / 戶口名"></textarea>
+      </div>
+      <button type="button" class="main-btn btn-green" onclick="saveMe()">儲存收款資料</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- 底部導航（員工只會見到「記行程」，老闆見到全部 4 個） -->
+<div class="bottom-nav no-print" id="bottom-nav">
+  <button class="nav-item active" onclick="go('page-log', this)"><span class="icon">📝</span>記行程</button>
+  <button class="nav-item boss-only" onclick="go('page-sum', this)"><span class="icon">📊</span>總數</button>
+  <button class="nav-item boss-only" onclick="go('page-pdf', this)"><span class="icon">🧾</span>出PDF</button>
+  <button class="nav-item boss-only" onclick="go('page-more', this)"><span class="icon">👤</span>客戶/收款</button>
+</div>
+
+<!-- 引入 Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+  // ==================== 系統設定 ====================
+  const BOSS_PIN = "1622";
+  const STAFF_PIN = "9858";
+  const firebaseConfig = {
+    databaseURL: "https://hk-truck-system-default-rtdb.asia-southeast1.firebasedatabase.app"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const database = firebase.database();
+
+  let currentRole = null; // 'BOSS' or 'STAFF'
+  let db = {
+    clients: {},
+    trips: {},
+    me: { comp: '', phone: '', pay: '' }
+  };
+
+  // ==================== 登入與權限控制 ====================
+  function checkLogin() {
+    const pin = document.getElementById('pin-code').value.trim();
+    const err = document.getElementById('login-err');
+    if (pin === BOSS_PIN) {
+      currentRole = 'BOSS';
+      sessionStorage.setItem('truck_role', 'BOSS');
+      applyRoleUI();
+    } else if (pin === STAFF_PIN) {
+      currentRole = 'STAFF';
+      sessionStorage.setItem('truck_role', 'STAFF');
+      applyRoleUI();
+    } else {
+      err.style.display = 'block';
+    }
+  }
+
+  function logout() {
+    if (!confirm('確定要登出或切換密碼嗎？')) return;
+    sessionStorage.removeItem('truck_role');
+    location.reload();
+  }
+
+  function applyRoleUI() {
+    document.getElementById('login-screen').style.display = 'none';
+    const bossTabs = document.querySelectorAll('.boss-only');
+    if (currentRole === 'BOSS') {
+      document.getElementById('role-display').innerText = '👑 老闆模式 (登出)';
+      document.getElementById('recent-box-title').innerText = '最近行程記錄（雲端即時同步）';
+      bossTabs.forEach(el => el.style.display = 'flex');
+    } else {
+      document.getElementById('role-display').innerText = '👷 員工入單模式 (登出)';
+      document.getElementById('recent-box-title').innerText = '今日已提交記錄（僅供核對）';
+      bossTabs.forEach(el => el.style.display = 'none');
+      go('page-log', document.querySelector('.nav-item'));
+    }
+    refresh();
+  }
+
+  // ==================== 雲端即時監聽 ====================
+  function startRealtimeSync() {
+    const statusEl = document.getElementById('sync-status');
+
+    database.ref('.info/connected').on('value', (snap) => {
+      if (snap.val() === true) {
+        statusEl.style.background = '#dcfce7';
+        statusEl.style.color = '#166534';
+        statusEl.innerText = '🟢 雲端已連線（多機即時同步中）';
+      } else {
+        statusEl.style.background = '#fef9c3';
+        statusEl.style.color = '#854d0e';
+        statusEl.innerText = '🟡 正在連線至雲端伺服器...';
+      }
+    });
+
+    database.ref('truckData').on('value', (snapshot) => {
+      const val = snapshot.val() || {};
+      db.clients = val.clients || {};
+      db.trips = val.trips || {};
+      db.me = val.me || { comp: '', phone: '', pay: '' };
+      refresh();
+    }, (error) => {
+      statusEl.style.background = '#fee2e2';
+      statusEl.style.color = '#991b1b';
+      statusEl.innerText = '🔴 連線受阻：請確認 Firebase「規則」已改為 true 並發布';
+    });
+  }
+
+  function load() {
+    const now = new Date();
+    const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
+    const today = `${y}-${m}-${d}`;
+    const monthStart = `${y}-${m}-01`;
+
+    document.getElementById('t-date').value = today;
+    document.getElementById('s-from').value = monthStart;
+    document.getElementById('s-to').value = today;
+    document.getElementById('p-from').value = monthStart;
+    document.getElementById('p-to').value = today;
+
+    const savedRole = sessionStorage.getItem('truck_role');
+    if (savedRole === 'BOSS' || savedRole === 'STAFF') {
+      currentRole = savedRole;
+      applyRoleUI();
+    }
+    startRealtimeSync();
+  }
+
+  function go(id, el) {
+    if (currentRole !== 'BOSS' && id !== 'page-log') return;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    if (el) el.classList.add('active');
+    if (id === 'page-sum') renderSum();
+    if (id === 'page-pdf') renderPDF();
+  }
+
+  function addText(id, txt) {
+    const el = document.getElementById(id);
+    el.value = el.value ? el.value + ' ' + txt : txt;
+  }
+  function clearInput(id) { document.getElementById(id).value = ''; }
+  function setVal(id, v) { document.getElementById(id).value = v; }
+
+  function calc(t) {
+    const bill = (t.fee || 0) + (t.reimburse ? ((t.tunnel || 0) + (t.park || 0)) : 0);
+    const exp = (t.tunnel || 0) + (t.park || 0) + (t.other || 0);
+    const net = bill - exp;
+    return { bill, exp, net };
+  }
+
+  function cname(id) {
+    return (db.clients && db.clients[id]) ? db.clients[id].name : '未知名客戶';
+  }
+
+  // ==================== 行程 CRUD ====================
+  function saveTrip() {
+    const id = document.getElementById('trip-id').value;
+    if (id && currentRole !== 'BOSS') { alert('權限不足'); return; }
+
+    const date = document.getElementById('t-date').value;
+    const clientId = document.getElementById('t-client').value;
+    const route = document.getElementById('t-route').value.trim() || '送貨行程';
+    const fee = parseFloat(document.getElementById('t-fee').value) || 0;
+    const tunnel = parseFloat(document.getElementById('t-tunnel').value) || 0;
+    const park = parseFloat(document.getElementById('t-park').value) || 0;
+    const other = parseFloat(document.getElementById('t-other').value) || 0;
+    const reimburse = document.getElementById('t-reimburse').checked;
+
+    if (!clientId) { alert('請先揀選客戶！'); return; }
+
+    const tripId = id || ('T' + Date.now());
+    const obj = {
+      id: tripId, date, clientId, route, fee, tunnel, park, other, reimburse,
+      by: currentRole === 'BOSS' ? '老闆' : '員工'
+    };
+
+    database.ref('truckData/trips/' + tripId).set(obj).then(() => {
+      resetTrip();
+      alert('✅ 已儲存並即時同步！');
+    }).catch(err => alert('儲存失敗：' + err.message));
+  }
+
+  function editTrip(id) {
+    if (currentRole !== 'BOSS') return;
+    const t = db.trips[id];
+    if (!t) return;
+    document.getElementById('trip-id').value = t.id;
+    document.getElementById('t-date').value = t.date;
+    document.getElementById('t-client').value = t.clientId;
+    document.getElementById('t-route').value = t.route;
+    document.getElementById('t-fee').value = t.fee;
+    document.getElementById('t-tunnel').value = t.tunnel;
+    document.getElementById('t-park').value = t.park;
+    document.getElementById('t-other').value = t.other;
+    document.getElementById('t-reimburse').checked = t.reimburse;
+    document.getElementById('log-title').innerText = '修改行程';
+    document.getElementById('btn-cancel-trip').style.display = 'block';
+    go('page-log', document.querySelectorAll('.nav-item')[0]);
+    window.scrollTo(0, 0);
+  }
+
+  function delTrip(id) {
+    if (currentRole !== 'BOSS') return;
+    if (!confirm('確定刪除呢筆記錄？')) return;
+    database.ref('truckData/trips/' + id).remove();
+  }
+
+  function resetTrip() {
+    document.getElementById('trip-id').value = '';
+    document.getElementById('t-route').value = '';
+    document.getElementById('t-fee').value = '';
+    document.getElementById('t-tunnel').value = '';
+    document.getElementById('t-park').value = '';
+    document.getElementById('t-other').value = '';
+    document.getElementById('t-reimburse').checked = true;
+    document.getElementById('log-title').innerText = '新增行程記錄';
+    document.getElementById('btn-cancel-trip').style.display = 'none';
+  }
+
+  // ==================== 客戶 CRUD（只限老闆） ====================
+  function saveClient() {
+    if (currentRole !== 'BOSS') return;
+    const id = document.getElementById('c-id').value;
+    const name = document.getElementById('c-name').value.trim();
+    const phone = document.getElementById('c-phone').value.trim();
+    const addr = document.getElementById('c-addr').value.trim();
+    if (!name) { alert('請輸入客戶名稱'); return; }
+
+    const cid = id || ('C' + Date.now());
+    database.ref('truckData/clients/' + cid).set({ id: cid, name, phone, addr }).then(() => {
+      resetClient();
+      alert('✅ 客戶資料已同步儲存');
+    });
+  }
+
+  function editClient(id) {
+    if (currentRole !== 'BOSS') return;
+    const c = db.clients[id];
+    if (!c) return;
+    document.getElementById('c-id').value = c.id;
+    document.getElementById('c-name').value = c.name;
+    document.getElementById('c-phone').value = c.phone;
+    document.getElementById('c-addr').value = c.addr;
+    document.getElementById('c-title').innerText = '修改客戶';
+    document.getElementById('btn-cancel-c').style.display = 'block';
+  }
+
+  function delClient(id) {
+    if (currentRole !== 'BOSS') return;
+    if (!confirm('確定刪除呢個客戶？')) return;
+    database.ref('truckData/clients/' + id).remove();
+  }
+
+  function resetClient() {
+    document.getElementById('c-id').value = '';
+    document.getElementById('c-name').value = '';
+    document.getElementById('c-phone').value = '';
+    document.getElementById('c-addr').value = '';
+    document.getElementById('c-title').innerText = '新增客戶';
+    document.getElementById('btn-cancel-c').style.display = 'none';
+  }
+
+  function saveMe() {
+    if (currentRole !== 'BOSS') return;
+    const meObj = {
+      comp: document.getElementById('m-comp').value.trim(),
+      phone: document.getElementById('m-phone').value.trim(),
+      pay: document.getElementById('m-pay').value.trim()
+    };
+    database.ref('truckData/me').set(meObj).then(() => alert('✅ 收款資料已同步儲存'));
+  }
+
+  // ==================== 列表渲染（按權限區分） ====================
+  function rowHTML(t) {
+    if (currentRole === 'BOSS') {
+      const { bill, exp } = calc(t);
+      return `
+        <div class="item-row">
+          <div>
+            <div style="font-size:12px; color:var(--muted);">${t.date} · <strong>${cname(t.clientId)}</strong> <span style="font-size:11px; background:#e2e8f0; padding:1px 5px; border-radius:4px;">${t.by || ''}</span></div>
+            <div style="font-weight:600; margin:2px 0;">${t.route}</div>
+            <div style="font-size:12px; color:#475569;">車費$${t.fee} · 隧道$${t.tunnel} · 停車$${t.park} ${t.other?'· 其他$'+t.other:''}</div>
+            <div style="font-size:13px; font-weight:700; color:var(--primary); margin-top:2px;">應收 $${bill} <span style="color:var(--danger); font-weight:500;">(支 $${exp})</span></div>
+          </div>
+          <div>
+            <button class="mini-btn btn-edit" onclick="editTrip('${t.id}')">改</button>
+            <button class="mini-btn btn-del" onclick="delTrip('${t.id}')">刪</button>
+          </div>
+        </div>
+      `;
+    } else {
+      // 員工模式：只顯示剛入嘅項目核對，唔顯示「應收總數」、唔畀改/刪舊數
+      return `
+        <div class="item-row">
+          <div>
+            <div style="font-size:12px; color:var(--muted);">${t.date} · <strong>${cname(t.clientId)}</strong></div>
+            <div style="font-weight:600; margin:2px 0;">${t.route}</div>
+            <div style="font-size:12px; color:#475569;">車費$${t.fee} · 隧道$${t.tunnel} · 停車$${t.park} ${t.other?'· 其他$'+t.other:''}</div>
+          </div>
+          <span style="font-size:12px; color:var(--success); font-weight:700;">✓ 已入雲端</span>
+        </div>
+      `;
+    }
+  }
+
+  function refresh() {
+    const clientsArr = Object.values(db.clients || {});
+    const tripsArr = Object.values(db.trips || {});
+
+    const tSel = document.getElementById('t-client');
+    const sSel = document.getElementById('s-client');
+    const pSel = document.getElementById('p-client');
+    const vT = tSel.value, vS = sSel.value, vP = pSel.value;
+
+    tSel.innerHTML = '<option value="">-- 揀客戶 --</option>';
+    sSel.innerHTML = '<option value="ALL">全部客戶</option>';
+    pSel.innerHTML = '<option value="">-- 揀客戶 --</option>';
+
+    clientsArr.forEach(c => {
+      tSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+      sSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+      pSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+
+    tSel.value = vT;
+    if (vS) sSel.value = vS;
+    pSel.value = vP;
+
+    const sorted = [...tripsArr].sort((a,b) => b.id.localeCompare(a.id));
+    if (currentRole === 'BOSS') {
+      document.getElementById('recent-list').innerHTML = sorted.length
+        ? sorted.slice(0, 15).map(rowHTML).join('')
+        : '<div style="color:var(--muted); font-size:14px;">未有行程記錄</div>';
+    } else {
+      // 員工只見到「今日」嘅記錄，唔會睇到歷史帳目
+      const todayStr = document.getElementById('t-date').value;
+      const todayTrips = sorted.filter(x => x.date === todayStr);
+      document.getElementById('recent-list').innerHTML = todayTrips.length
+        ? todayTrips.map(rowHTML).join('')
+        : '<div style="color:var(--muted); font-size:14px;">今日暫未有記錄</div>';
+    }
+
+    if (currentRole === 'BOSS') {
+      document.getElementById('c-count').innerText = clientsArr.length;
+      document.getElementById('c-list').innerHTML = clientsArr.length
+        ? clientsArr.map(c => `
+            <div class="item-row">
+              <div>
+                <div style="font-weight:700;">${c.name}</div>
+                <div style="font-size:12px; color:#475569;">${c.phone || ''} ${c.addr ? '· '+c.addr : ''}</div>
+              </div>
+              <div>
+                <button class="mini-btn btn-edit" onclick="editClient('${c.id}')">改</button>
+                <button class="mini-btn btn-del" onclick="delClient('${c.id}')">刪</button>
+              </div>
+            </div>
+          `).join('')
+        : '<div style="color:var(--muted); font-size:14px;">未有客戶資料</div>';
+
+      document.getElementById('m-comp').value = db.me.comp || '';
+      document.getElementById('m-phone').value = db.me.phone || '';
+      document.getElementById('m-pay').value = db.me.pay || '';
+
+      renderSum();
+    }
+  }
+
+  function renderSum() {
+    if (currentRole !== 'BOSS') return;
+    const f = document.getElementById('s-from').value;
+    const t = document.getElementById('s-to').value;
+    const c = document.getElementById('s-client').value;
+
+    const list = Object.values(db.trips || {})
+      .filter(x => (!f||x.date>=f) && (!t||x.date<=t) && (c==='ALL'||x.clientId===c))
+      .sort((a,b) => b.date.localeCompare(a.date));
+
+    let bill=0, exp=0, net=0;
+    list.forEach(x => { const n=calc(x); bill+=n.bill; exp+=n.exp; net+=n.net; });
+
+    document.getElementById('k-bill').innerText = '$' + bill.toLocaleString();
+    document.getElementById('k-exp').innerText = '$' + exp.toLocaleString();
+    document.getElementById('k-net').innerText = '$' + net.toLocaleString();
+    document.getElementById('k-cnt').innerText = list.length + ' 單';
+    document.getElementById('sum-list').innerHTML = list.length ? list.map(rowHTML).join('') : '<div style="color:var(--muted);">呢段期冇記錄</div>';
+  }
+
+  function renderPDF() {
+    if (currentRole !== 'BOSS') return;
+    const cid = document.getElementById('p-client').value;
+    const f = document.getElementById('p-from').value;
+    const t = document.getElementById('p-to').value;
+    const paper = document.getElementById('pdf-paper');
+
+    if (!cid) {
+      paper.innerHTML = '<div style="text-align:center; color:var(--muted); padding:24px;">請先揀客戶</div>';
+      return;
+    }
+
+    const cli = db.clients[cid];
+    const items = Object.values(db.trips || {})
+      .filter(x => x.clientId===cid && (!f||x.date>=f) && (!t||x.date<=t))
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    let total = 0;
+    const trs = items.map(x => {
+      const tun = x.reimburse ? (x.tunnel || 0) : 0;
+      const prk = x.reimburse ? (x.park || 0) : 0;
+      const sub = (x.fee || 0) + tun + prk;
+      total += sub;
+      return `<tr>
+        <td>${x.date}</td>
+        <td>${x.route}</td>
+        <td class="r">$${x.fee}</td>
+        <td class="r">$${tun+prk}</td>
+        <td class="r"><strong>$${sub}</strong></td>
+      </tr>`;
+    }).join('');
+
+    paper.innerHTML = `
+      <div class="pdf-top">
+        <div>
+          <div style="font-size:17px; font-weight:800;">${db.me.comp || '運輸結算單'}</div>
+          <div style="font-size:12px; color:#334155;">${db.me.phone || ''}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:18px; font-weight:800;">結算單 / INVOICE</div>
+          <div style="font-size:11px;">${f || ''} 至 ${t || ''}</div>
+        </div>
+      </div>
+      <div style="font-size:12px; margin-bottom:12px; line-height:1.5;">
+        <strong>客戶：</strong>${cli ? cli.name : ''}<br>
+        ${cli && cli.addr ? '<strong>地址：</strong>'+cli.addr+'<br>' : ''}
+        ${cli && cli.phone ? '<strong>電話：</strong>'+cli.phone : ''}
+      </div>
+      <table class="pdf-table">
+        <thead>
+          <tr><th>日期</th><th>路線</th><th class="r">車費</th><th class="r">隧道/停</th><th class="r">小計</th></tr>
+        </thead>
+        <tbody>${trs || '<tr><td colspan="5" style="text-align:center;">冇記錄</td></tr>'}</tbody>
+      </table>
+      <div style="text-align:right; font-size:15px; font-weight:800; margin-bottom:12px;">
+        總金額：HK$ ${total.toLocaleString()}
+      </div>
+      <div class="pdf-pay"><strong>收款資料：</strong>\n${db.me.pay || '（未填寫收款戶口）'}</div>
+    `;
+  }
+
+  window.onload = load;
+</script>
+</body>
+</html>
