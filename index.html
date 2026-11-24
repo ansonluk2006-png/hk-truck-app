@@ -112,6 +112,30 @@
   .kpi-label { font-size: 12px; color: var(--muted); }
   .kpi-num { font-size: 20px; font-weight: 800; margin-top: 4px; }
 
+  /* 日與日之間嘅分隔線及日期標題 */
+  .day-divider {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 2.5px solid #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .day-divider:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+  .day-badge {
+    display: inline-block;
+    background: #e2e8f0;
+    color: #0f172a;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 6px;
+  }
+
   .item-row {
     padding: 11px 0; border-bottom: 1px solid #e2e8f0;
     display: flex; justify-content: space-between; align-items: center; gap: 8px;
@@ -194,7 +218,7 @@
         <input type="text" id="t-route" placeholder="撳下方掣或輸入路線">
         <div class="tap-group">
           <button type="button" class="tap-btn" onclick="addText('t-route', 'HKTVMall ➔ ')">HKTVMall ➔</button>
-          <button type="button" class="tap-btn" onclick="addText('t-route', '葵涌倉 ➔ ')">京華 ➔</button>
+          <button type="button" class="tap-btn" onclick="addText('t-route', '京華 ➔ ')">京華 ➔</button>
           <button type="button" class="tap-btn" onclick="addText('t-route', 'WTS')">WTS</button>
           <button type="button" class="tap-btn" onclick="addText('t-route', 'LF')">LF</button>
           <button type="button" class="tap-btn" onclick="addText('t-route', 'HKTVMall')">HKTVMall</button>
@@ -239,7 +263,7 @@
       <button type="button" id="btn-cancel-trip" class="main-btn btn-light" style="display:none;" onclick="resetTrip()">取消修改</button>
     </div>
 
-    <!-- 老闆睇最近 15 單（含金額同改/刪掣）；員工只睇今日已入單數核對（不顯示總數） -->
+    <!-- 老闆睇最近行程（含金額同改/刪掣）；員工只睇今日已入單數核對（不顯示總數） -->
     <div class="box">
       <div class="box-title" id="recent-box-title">最近行程記錄</div>
       <div id="recent-list"></div>
@@ -627,8 +651,8 @@
     database.ref('truckData/me').set(meObj).then(() => alert('✅ 收款資料已同步儲存'));
   }
 
-  // ==================== 列表渲染（按權限區分） ====================
-  function rowHTML(t) {
+  // ==================== 列表渲染（按權限區分 + 日與日分隔線） ====================
+  function singleRowHTML(t) {
     if (currentRole === 'BOSS') {
       const { bill, exp } = calc(t);
       return `
@@ -646,7 +670,6 @@
         </div>
       `;
     } else {
-      // 員工模式：只顯示剛入嘅項目核對，唔顯示「應收總數」、唔畀改/刪舊數
       return `
         <div class="item-row">
           <div>
@@ -658,6 +681,27 @@
         </div>
       `;
     }
+  }
+
+  function groupedListHTML(list) {
+    if (!list.length) return '';
+    let html = '';
+    let lastDate = null;
+    list.forEach(t => {
+      if (t.date !== lastDate) {
+        html += `<div class="day-divider"><span class="day-badge">📅 ${t.date}</span></div>`;
+        lastDate = t.date;
+      }
+      html += singleRowHTML(t);
+    });
+    return html;
+  }
+
+  function sortByDateDesc(arr) {
+    return [...arr].sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return b.id.localeCompare(a.id);
+    });
   }
 
   function refresh() {
@@ -683,17 +727,16 @@
     if (vS) sSel.value = vS;
     pSel.value = vP;
 
-    const sorted = [...tripsArr].sort((a,b) => b.id.localeCompare(a.id));
+    const sorted = sortByDateDesc(tripsArr);
     if (currentRole === 'BOSS') {
       document.getElementById('recent-list').innerHTML = sorted.length
-        ? sorted.slice(0, 15).map(rowHTML).join('')
+        ? groupedListHTML(sorted.slice(0, 20))
         : '<div style="color:var(--muted); font-size:14px;">未有行程記錄</div>';
     } else {
-      // 員工只見到「今日」嘅記錄，唔會睇到歷史帳目
       const todayStr = document.getElementById('t-date').value;
       const todayTrips = sorted.filter(x => x.date === todayStr);
       document.getElementById('recent-list').innerHTML = todayTrips.length
-        ? todayTrips.map(rowHTML).join('')
+        ? groupedListHTML(todayTrips)
         : '<div style="color:var(--muted); font-size:14px;">今日暫未有記錄</div>';
     }
 
@@ -728,9 +771,10 @@
     const t = document.getElementById('s-to').value;
     const c = document.getElementById('s-client').value;
 
-    const list = Object.values(db.trips || {})
-      .filter(x => (!f||x.date>=f) && (!t||x.date<=t) && (c==='ALL'||x.clientId===c))
-      .sort((a,b) => b.date.localeCompare(a.date));
+    const list = sortByDateDesc(
+      Object.values(db.trips || {})
+        .filter(x => (!f||x.date>=f) && (!t||x.date<=t) && (c==='ALL'||x.clientId===c))
+    );
 
     let bill=0, exp=0, net=0;
     list.forEach(x => { const n=calc(x); bill+=n.bill; exp+=n.exp; net+=n.net; });
@@ -739,7 +783,7 @@
     document.getElementById('k-exp').innerText = '$' + exp.toLocaleString();
     document.getElementById('k-net').innerText = '$' + net.toLocaleString();
     document.getElementById('k-cnt').innerText = list.length + ' 單';
-    document.getElementById('sum-list').innerHTML = list.length ? list.map(rowHTML).join('') : '<div style="color:var(--muted);">呢段期冇記錄</div>';
+    document.getElementById('sum-list').innerHTML = list.length ? groupedListHTML(list) : '<div style="color:var(--muted);">呢段期冇記錄</div>';
   }
 
   function renderPDF() {
